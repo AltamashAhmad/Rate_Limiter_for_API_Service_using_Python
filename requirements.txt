@@ -1,0 +1,6 @@
+Flask
+flask-cors
+redis
+rq
+textblob
+python-dotenv
