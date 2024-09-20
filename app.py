@@ -61,7 +61,7 @@ def is_rate_limited(user_id, tier):
 
 @app.route('/api/v1/analytics/submit', methods=['POST'])
 def submit_data():
-    # Parse incoming request (store data in data diction..) 
+    # Parse incoming request
     data = request.get_json()
     platform = data.get('platform')
     content = data.get('content')
@@ -82,12 +82,26 @@ def submit_data():
         response.headers['Retry-After'] = retry_after
         return response, 429
 
-    # Generate unique analysis ID
-    analysis_id = str(uuid.uuid4())
-    job = queue.enqueue(process_submission, platform, content, timestamp, analysis_id, user_id)
+    # Generate unique submission ID
+    submission_id = str(uuid.uuid4())
+    timestamp = int(time.time())  # Use the current time or provided timestamp
+
+    # Define the user's submissions key
+    user_submissions_key = f"user:{user_id}:submissions"
+
+    # Add submission to the user's submissions set
+    redis_conn.zadd(user_submissions_key, {submission_id: timestamp})
+
+    # Store the submission details
+    redis_conn.hmset(f"submission:{submission_id}", {
+        'platform': platform,
+        'hashtags': data.get('hashtags', ''),  # Make sure to capture hashtags if provided
+        'sentiment_score': data.get('sentiment_score', 0.0)  # Capture sentiment score if provided
+    })
 
     # Return successful response
-    return jsonify({'status': 'Data received successfully', 'analysis_id': analysis_id, 'job_id': job.get_id()}), 200
+    return jsonify({'status': 'Data received successfully', 'submission_id': submission_id}), 200
+
 
 @app.route('/api/v1/analytics/dashboard', methods=['GET'])
 def get_dashboard():
@@ -97,28 +111,22 @@ def get_dashboard():
     start_time = request.args.get('start_time')  # Optional
     end_time = request.args.get('end_time')  # Optional
 
+    # Validate user_id
     if not user_id:
         return jsonify({'status': 'error', 'message': 'Missing user_id query parameter.'}), 400
 
+    # Validate timestamps if provided
+    try:
+        start_epoch = int(time.mktime(time.strptime(start_time, "%Y-%m-%dT%H:%M:%SZ"))) if start_time else 0
+        end_epoch = int(time.mktime(time.strptime(end_time, "%Y-%m-%dT%H:%M:%SZ"))) if end_time else int(time.time())
+    except ValueError:
+        return jsonify({'status': 'error', 'message': 'Invalid time format. Use ISO 8601 format.'}), 400
+
+    if start_epoch > end_epoch:
+        return jsonify({'status': 'error', 'message': 'start_time cannot be greater than end_time.'}), 400
+
     # Define user's submissions key
     user_submissions_key = f"user:{user_id}:submissions"
-
-    # Convert start_time and end_time to epoch
-    if start_time:
-        try:
-            start_epoch = int(time.mktime(time.strptime(start_time, "%Y-%m-%dT%H:%M:%SZ")))
-        except ValueError:
-            return jsonify({'status': 'error', 'message': 'Invalid start_time format. Use ISO 8601 format.'}), 400
-    else:
-        start_epoch = 0  # Beginning of epoch
-
-    if end_time:
-        try:
-            end_epoch = int(time.mktime(time.strptime(end_time, "%Y-%m-%dT%H:%M:%SZ")))
-        except ValueError:
-            return jsonify({'status': 'error', 'message': 'Invalid end_time format. Use ISO 8601 format.'}), 400
-    else:
-        end_epoch = int(time.time())  # Current time
 
     # Retrieve submission IDs within the time range
     submission_ids = redis_conn.zrangebyscore(user_submissions_key, start_epoch, end_epoch)
@@ -135,18 +143,15 @@ def get_dashboard():
         if not submission:
             continue  # Skip if submission data is missing
 
-        # Decode bytes to strings
         submission = {k.decode('utf-8'): v.decode('utf-8') for k, v in submission.items()}
 
-        # Filter by platform if specified
         if platform and submission.get('platform') != platform:
             continue
 
         # Count hashtags
         hashtags = submission.get('hashtags', "")
         if hashtags:
-            hashtags_list = hashtags.split(",")
-            hashtags_counter.update(hashtags_list)
+            hashtags_counter.update(hashtags.split(","))
 
         # Accumulate sentiment scores
         sentiment = float(submission.get('sentiment_score', 0.0))
@@ -154,12 +159,16 @@ def get_dashboard():
         sentiment_count += 1
 
     # Calculate top hashtags
-    top_hashtags = [tag for tag, count in hashtags_counter.most_common(5)]  # Top 5
+    top_hashtags = [tag for tag, count in hashtags_counter.most_common()]  # All popular hashtags
 
     # Calculate average sentiment score
     sentiment_score = (sentiment_total / sentiment_count) if sentiment_count > 0 else 0.0
 
-    return jsonify({'mentions_count': mentions_count, 'top_hashtags': top_hashtags, 'sentiment_score': sentiment_score}), 200
+    return jsonify({
+        'mentions_count': mentions_count,
+        'top_hashtags': top_hashtags,
+        'sentiment_score': sentiment_score
+    }), 200
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
