@@ -42,11 +42,12 @@ python3 -m venv venv
 source venv/bin/activate  
 
    Ensure you have Python and Redis installed. Install required Python packages using:
-   ```bash
    pip install -r requirements.txt
 ### Start Redis: Make sure Redis server is running. You can start Redis using
     redis-server
     brew services start redis    
+   ### to restart redis 
+    brew services restart redis
 ### Run the Application: Start the Flask application with:
     python app.py
 
