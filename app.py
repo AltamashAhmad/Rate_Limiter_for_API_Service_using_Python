@@ -61,7 +61,7 @@ def is_rate_limited(user_id, tier):
 
 @app.route('/api/v1/analytics/submit', methods=['POST'])
 def submit_data():
-    # Parse incoming request
+    # Parse incoming request (store data in data diction..) 
     data = request.get_json()
     platform = data.get('platform')
     content = data.get('content')

@@ -17,13 +17,13 @@ def process_submission(platform, content, timestamp, analysis_id, user_id):
     print(f"Processing submission {analysis_id} for user {user_id}")
     time.sleep(2)  # Simulate a delay in processing
 
-    # Extract hashtags
+    # Extract hashtags 
     hashtags = extract_hashtags(content)
 
     # Calculate sentiment score
     sentiment_score = calculate_sentiment(content)
 
-    # Store submission data in Redis
+    # Store submission data in Redis (GET)
     submission_key = f"submission:{analysis_id}"
     redis_conn.hmset(submission_key, {
         'platform': platform,

@@ -29,7 +29,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/Users/altamashahmad96/Desktop/retry/venv"
+set -gx VIRTUAL_ENV "/Users/altamashahmad96/Desktop/Rate_Limiter_for_API_Service/venv"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH

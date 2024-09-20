@@ -37,6 +37,10 @@ Rate limits are configured dynamically using environment variables. The followin
 
 ### Setup Instructions
 1. **Install Dependencies:**
+# Activate the virtual environment
+python3 -m venv venv
+source venv/bin/activate  
+
    Ensure you have Python and Redis installed. Install required Python packages using:
    ```bash
    pip install -r requirements.txt
@@ -46,10 +50,9 @@ Rate limits are configured dynamically using environment variables. The followin
 ### Run the Application: Start the Flask application with:
     python app.py
 
-
 ### Dependencies
 - `Flask: Web framework for Python.`
-- `Flask-Cors: CORS support for Flask.`
+- `Flask-Cors: CORS support for Flask.
 - `Redis: In-memory data structure store.`
 - `RQ (Redis Queue): Library for background job processing.`
 - `TextBlob: Text processing library (for sentiment analysis).`
